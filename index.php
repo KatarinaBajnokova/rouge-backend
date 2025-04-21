@@ -25,81 +25,95 @@ try {
     exit;
 }
 
-// 4) Ensure core items table exists
-$db->exec('
-  CREATE TABLE IF NOT EXISTS items (
-    id             INTEGER PRIMARY KEY AUTOINCREMENT,
-    name           TEXT    NOT NULL,
-    category       TEXT    NOT NULL,
-    level          TEXT    NOT NULL,
-    price          REAL    NOT NULL,
-    image_url      TEXT    NOT NULL,
-    category_group TEXT    NOT NULL,
-    description    TEXT    DEFAULT \'\',
-    tutorial_url   TEXT    DEFAULT \'\'
-  )
-');
+// 4) Ensure all tables exist
+$db->exec(<<<'SQL'
+CREATE TABLE IF NOT EXISTS items (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  name           TEXT    NOT NULL,
+  category       TEXT    NOT NULL,
+  level          TEXT    NOT NULL,
+  price          REAL    NOT NULL,
+  image_url      TEXT    NOT NULL,
+  category_group TEXT    NOT NULL,
+  description    TEXT    DEFAULT '',
+  tutorial_url   TEXT    DEFAULT ''
+);
 
-// 5) Ensure the six supporting tables exist
-$db->exec('
-  CREATE TABLE IF NOT EXISTS item_images (
-    id      INTEGER PRIMARY KEY AUTOINCREMENT,
-    item_id INTEGER NOT NULL,
-    url     TEXT    NOT NULL,
-    FOREIGN KEY(item_id) REFERENCES items(id) ON DELETE CASCADE
-  );
-  CREATE TABLE IF NOT EXISTS tags (
-    id   INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT    UNIQUE NOT NULL
-  );
-  CREATE TABLE IF NOT EXISTS item_tags (
-    item_id INTEGER NOT NULL,
-    tag_id  INTEGER NOT NULL,
-    PRIMARY KEY(item_id, tag_id),
-    FOREIGN KEY(item_id) REFERENCES items(id) ON DELETE CASCADE,
-    FOREIGN KEY(tag_id)  REFERENCES tags(id) ON DELETE CASCADE
-  );
-  CREATE TABLE IF NOT EXISTS box_products (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    item_id     INTEGER NOT NULL,
-    title       TEXT    NOT NULL,
-    image_url   TEXT    NOT NULL,
-    description TEXT    NOT NULL,
-    FOREIGN KEY(item_id) REFERENCES items(id) ON DELETE CASCADE
-  );
-  CREATE TABLE IF NOT EXISTS instructions (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    item_id     INTEGER NOT NULL,
-    step_number INTEGER NOT NULL,
-    title       TEXT,
-    text        TEXT    NOT NULL,
-    FOREIGN KEY(item_id) REFERENCES items(id) ON DELETE CASCADE
-  );
-  CREATE TABLE IF NOT EXISTS reviews (
-    id      INTEGER PRIMARY KEY AUTOINCREMENT,
-    item_id INTEGER NOT NULL,
-    author  TEXT    NOT NULL,
-    rating  INTEGER NOT NULL CHECK(rating BETWEEN 1 AND 5),
-    comment TEXT    NOT NULL,
-    FOREIGN KEY(item_id) REFERENCES items(id) ON DELETE CASCADE
-  );
-');
+CREATE TABLE IF NOT EXISTS item_images (
+  id      INTEGER PRIMARY KEY AUTOINCREMENT,
+  item_id INTEGER NOT NULL,
+  url     TEXT    NOT NULL,
+  FOREIGN KEY(item_id) REFERENCES items(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS tags (
+  id   INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT    UNIQUE NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS item_tags (
+  item_id INTEGER NOT NULL,
+  tag_id  INTEGER NOT NULL,
+  PRIMARY KEY(item_id, tag_id),
+  FOREIGN KEY(item_id) REFERENCES items(id) ON DELETE CASCADE,
+  FOREIGN KEY(tag_id)  REFERENCES tags(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS box_products (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  item_id     INTEGER NOT NULL,
+  title       TEXT    NOT NULL,
+  image_url   TEXT    NOT NULL,
+  description TEXT    NOT NULL,
+  FOREIGN KEY(item_id) REFERENCES items(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS instructions (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  item_id     INTEGER NOT NULL,
+  step_number INTEGER NOT NULL,
+  title       TEXT,
+  text        TEXT    NOT NULL,
+  FOREIGN KEY(item_id) REFERENCES items(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS reviews (
+  id      INTEGER PRIMARY KEY AUTOINCREMENT,
+  item_id INTEGER NOT NULL,
+  author  TEXT    NOT NULL,
+  rating  INTEGER NOT NULL CHECK(rating BETWEEN 1 AND 5),
+  comment TEXT    NOT NULL,
+  FOREIGN KEY(item_id) REFERENCES items(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS basket (
+  id        INTEGER PRIMARY KEY AUTOINCREMENT,
+  item_id   INTEGER NOT NULL,
+  quantity  INTEGER NOT NULL DEFAULT 1,
+  added_at  TEXT    DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(item_id) REFERENCES items(id) ON DELETE CASCADE
+);
+SQL
+);
 
 // Helper to send JSON + status
 function send($data, $status = 200) {
+    if (!headers_sent()) header('Content-Type: application/json');
     http_response_code($status);
-    echo json_encode($data);
+    echo json_encode($data, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE);
     exit;
 }
 
-// 6) Routing
+// Routing
 $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $path       = trim(str_replace('/api', '', $requestUri), '/');
 
-// Root
+// ─── ROOT ────────────────────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($path === '' || $path === 'index.php')) {
     send(['message' => 'Welcome to Rouge‑Backend API']);
 }
+
+// ─── ITEMS ROUTES ────────────────────────────────────────
 
 // GET /api/items or /api/items?category_group=…
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && $path === 'items') {
@@ -110,19 +124,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && $path === 'items') {
         } else {
             $stmt = $db->query('SELECT * FROM items');
         }
-        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        send($rows);
+        send($stmt->fetchAll(PDO::FETCH_ASSOC));
     } catch (Exception $e) {
         error_log('[API ERROR] ' . $e->getMessage());
         send(['error' => 'Internal server error'], 500);
     }
 }
 
-// GET /api/items/:id  ← enriched response
+// GET /api/items/:id (with images, tags, boxProducts, instructions, reviews)
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && preg_match('#^items/(\d+)$#', $path, $m)) {
     $id = (int)$m[1];
     try {
-        // 1) Main item
+        // main item
         $stmt = $db->prepare('
           SELECT id,name,category,level,price,image_url,category_group,description,tutorial_url
             FROM items
@@ -134,12 +147,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && preg_match('#^items/(\d+)$#', $path,
             send(['error' => 'Not found'], 404);
         }
 
-        // 2) Carousel images
+        // images
         $stmt = $db->prepare('SELECT url FROM item_images WHERE item_id = :id ORDER BY id');
         $stmt->execute([':id' => $id]);
         $item['images'] = array_column($stmt->fetchAll(PDO::FETCH_ASSOC), 'url');
 
-        // 3) Tags
+        // tags
         $stmt = $db->prepare('
           SELECT t.name
             FROM tags t
@@ -149,16 +162,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && preg_match('#^items/(\d+)$#', $path,
         $stmt->execute([':id' => $id]);
         $item['tags'] = array_column($stmt->fetchAll(PDO::FETCH_ASSOC), 'name');
 
-        // 4) Box products
-        $stmt = $db->prepare('
-          SELECT id,title,image_url,description
-            FROM box_products
-           WHERE item_id = :id
-        ');
+        // boxProducts
+        $stmt = $db->prepare('SELECT id,title,image_url,description FROM box_products WHERE item_id = :id');
         $stmt->execute([':id' => $id]);
         $item['boxProducts'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // 5) Instructions
+        // instructions
         $stmt = $db->prepare('
           SELECT step_number,title,text
             FROM instructions
@@ -168,12 +177,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && preg_match('#^items/(\d+)$#', $path,
         $stmt->execute([':id' => $id]);
         $item['instructions'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // 6) Reviews
+        // reviews
         $stmt = $db->prepare('SELECT id,author,rating,comment FROM reviews WHERE item_id = :id');
         $stmt->execute([':id' => $id]);
         $item['reviews'] = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // 7) Camel‑case the tutorial_url field
+        // camelCase tutorialUrl
         $item['tutorialUrl'] = $item['tutorial_url'];
         unset($item['tutorial_url']);
 
@@ -204,7 +213,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $path === 'items') {
       ':image_url'      => $data['image_url'],
       ':category_group' => $data['category_group'],
     ]);
-    $data['id'] = $db->lastInsertId();
+    $data['id'] = (int)$db->lastInsertId();
     send($data, 201);
 }
 
@@ -223,7 +232,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'PUT' && preg_match('#^items/(\d+)$#', $path,
     $sql = 'UPDATE items SET ' . implode(', ', $updates) . ' WHERE id = :id';
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
-    send(['updated' => $stmt->rowCount() > 0]);
+    send(['updated' => (bool)$stmt->rowCount()]);
 }
 
 // DELETE /api/items/:id
@@ -237,5 +246,96 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE' && preg_match('#^items/(\d+)$#', $pa
     }
 }
 
-// Fallback 404
+// ─── BASKET ROUTES ────────────────────────────────────────
+
+// GET /api/basket
+if ($_SERVER['REQUEST_METHOD'] === 'GET' && $path === 'basket') {
+    $stmt = $db->query(
+      'SELECT b.id AS basketId, b.quantity, i.id AS itemId, i.name, i.image_url, i.category, i.level, i.price
+         FROM basket b
+         JOIN items i ON i.id = b.item_id'
+    );
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $items = array_map(function($r) {
+        return [
+          'id'        => (int)$r['basketId'],
+          'item_id'   => (int)$r['itemId'],
+          'name'      => $r['name'],
+          'image_url' => $r['image_url'],
+          'category'  => $r['category'],
+          'level'     => $r['level'],
+          'price'     => (float)$r['price'],
+          'quantity'  => (int)$r['quantity'],
+        ];
+    }, $rows);
+    $total = array_reduce($items, fn($sum,$it) => $sum + $it['price'] * $it['quantity'], 0.0);
+    send(['items' => $items, 'total_price' => round($total, 2)]);
+}
+
+// POST /api/basket (add or increment)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $path === 'basket') {
+    $data = json_decode(file_get_contents('php://input'), true) ?: [];
+    if (empty($data['item_id'])) {
+        send(['error' => 'item_id is required'], 400);
+    }
+    $itemId = (int)$data['item_id'];
+    $qty    = isset($data['quantity']) && is_int($data['quantity']) ? $data['quantity'] : 1;
+
+    // increment if exists
+    $sel = $db->prepare('SELECT id, quantity FROM basket WHERE item_id = :iid');
+    $sel->execute([':iid' => $itemId]);
+    if ($row = $sel->fetch(PDO::FETCH_ASSOC)) {
+        $newQty = $row['quantity'] + $qty;
+        $upd = $db->prepare('UPDATE basket SET quantity = :q WHERE id = :bid');
+        $upd->execute([':q' => $newQty, ':bid' => $row['id']]);
+    } else {
+        $ins = $db->prepare('INSERT INTO basket (item_id, quantity) VALUES (:iid, :q)');
+        $ins->execute([':iid' => $itemId, ':q' => $qty]);
+    }
+
+    // return the updated basket snapshot
+    // (duplicate GET logic)
+    $stmt = $db->query(
+      'SELECT b.id AS basketId, b.quantity, i.id AS itemId, i.name, i.image_url, i.category, i.level, i.price
+         FROM basket b
+         JOIN items i ON i.id = b.item_id'
+    );
+    $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $items = array_map(function($r) {
+        return [
+          'id'        => (int)$r['basketId'],
+          'item_id'   => (int)$r['itemId'],
+          'name'      => $r['name'],
+          'image_url' => $r['image_url'],
+          'category'  => $r['category'],
+          'level'     => $r['level'],
+          'price'     => (float)$r['price'],
+          'quantity'  => (int)$r['quantity'],
+        ];
+    }, $rows);
+    $total = array_reduce($items, fn($sum,$it) => $sum + $it['price'] * $it['quantity'], 0.0);
+    send(['items' => $items, 'total_price' => round($total, 2)], 201);
+}
+
+// PUT /api/basket/:id (set exact quantity)
+if ($_SERVER['REQUEST_METHOD'] === 'PUT' && preg_match('#^basket/(\d+)$#', $path, $m)) {
+    $bid = (int)$m[1];
+    $data = json_decode(file_get_contents('php://input'), true) ?: [];
+    if (!isset($data['quantity']) || !is_int($data['quantity'])) {
+        send(['error' => 'quantity must be integer'], 400);
+    }
+    $stmt = $db->prepare('UPDATE basket SET quantity = :q WHERE id = :bid');
+    $stmt->execute([':q' => $data['quantity'], ':bid' => $bid]);
+    send(['success' => (bool)$stmt->rowCount()]);
+}
+
+// DELETE /api/basket/:id
+if ($_SERVER['REQUEST_METHOD'] === 'DELETE' && preg_match('#^basket/(\d+)$#', $path, $m)) {
+    $bid = (int)$m[1];
+    $stmt = $db->prepare('DELETE FROM basket WHERE id = :bid');
+    $stmt->execute([':bid' => $bid]);
+    send(['success' => (bool)$stmt->rowCount()]);
+}
+
+// ─── FALLBACK 404 ────────────────────────────────────────
 send(['error' => 'Endpoint not found'], 404);
