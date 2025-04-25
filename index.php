@@ -93,6 +93,23 @@ CREATE TABLE IF NOT EXISTS basket (
   added_at  TEXT    DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY(item_id) REFERENCES items(id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS orders (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  full_name      TEXT,
+  email          TEXT,
+  phone          TEXT,
+  address_1      TEXT,
+  address_2      TEXT,
+  company_name   TEXT,
+  vat_number     TEXT,
+  payment_method TEXT,
+  is_gift        INTEGER DEFAULT 0,
+  friend_name    TEXT,
+  friend_email   TEXT,
+  created_at     TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
 SQL
 );
 
