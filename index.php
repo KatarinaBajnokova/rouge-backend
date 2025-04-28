@@ -69,6 +69,11 @@ if (preg_match('#^instructions($|/)#', $path)) {
     exit;
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && preg_match('#^auth/login$#', $path)) {
+    require_once __DIR__ . '/routes/auth.php';
+    exit;
+}
+
 if (preg_match('#^users($|/)#', $path)) {
     require_once __DIR__ . '/routes/users.php';
     exit;
