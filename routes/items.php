@@ -6,7 +6,7 @@ $method = $_SERVER['REQUEST_METHOD'];
 $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $path = trim(str_replace('/api/', '', $requestUri), '/');
 
-// ─── GET /api/items or /api/items?category_group=... ───
+// GET /api/items or /api/items?category_group=...
 if ($method === 'GET' && $path === 'items') {
     try {
         if (isset($_GET['category_group'])) {
@@ -22,7 +22,7 @@ if ($method === 'GET' && $path === 'items') {
     }
 }
 
-// ─── GET /api/items/:id ───
+// GET /api/items/:id
 if ($method === 'GET' && preg_match('#^items/(\d+)$#', $path, $m)) {
     $id = (int)$m[1];
     try {
@@ -33,17 +33,17 @@ if ($method === 'GET' && preg_match('#^items/(\d+)$#', $path, $m)) {
             send(['error' => 'Not found'], 404);
         }
 
-        // Fetch images
+        // fetch images
         $imgStmt = $db->prepare("SELECT id, url FROM item_images WHERE item_id = ?");
         $imgStmt->execute([$id]);
         $item['images'] = $imgStmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // Fetch reviews
+        // fetch reviews
         $reviewStmt = $db->prepare("SELECT id, author, rating, comment FROM reviews WHERE item_id = ?");
         $reviewStmt->execute([$id]);
         $item['reviews'] = $reviewStmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // Fetch tags
+        // fetch tags
         $tagStmt = $db->prepare("
             SELECT t.name
             FROM tags t
@@ -53,7 +53,7 @@ if ($method === 'GET' && preg_match('#^items/(\d+)$#', $path, $m)) {
         $tagStmt->execute([$id]);
         $item['tags'] = $tagStmt->fetchAll(PDO::FETCH_COLUMN);
 
-        // Optional: camelCase transformation
+        // camelcase transformation (optional)
         if (isset($item['tutorial_url'])) {
             $item['tutorialUrl'] = $item['tutorial_url'];
             unset($item['tutorial_url']);
@@ -66,7 +66,7 @@ if ($method === 'GET' && preg_match('#^items/(\d+)$#', $path, $m)) {
     }
 }
 
-// ─── POST /api/items ───
+// POST /api/items
 if ($method === 'POST' && $path === 'items') {
     $data = json_decode(file_get_contents('php://input'), true) ?: [];
     foreach (['name','category','level','price','image_url','category_group'] as $fld) {
@@ -91,7 +91,7 @@ if ($method === 'POST' && $path === 'items') {
     send($data, 201);
 }
 
-// ─── PUT /api/items/:id ───
+// PUT /api/items/:id
 if ($method === 'PUT' && preg_match('#^items/(\d+)$#', $path, $m)) {
     $data = json_decode(file_get_contents('php://input'), true) ?: [];
     $fields = ['name','category','level','price','image_url','category_group','description','tutorial_url'];
@@ -113,7 +113,7 @@ if ($method === 'PUT' && preg_match('#^items/(\d+)$#', $path, $m)) {
     send(['updated' => (bool)$stmt->rowCount()]);
 }
 
-// ─── DELETE /api/items/:id ───
+// DELETE /api/items/:id
 if ($method === 'DELETE' && preg_match('#^items/(\d+)$#', $path, $m)) {
     $stmt = $db->prepare('DELETE FROM items WHERE id = :id');
     $stmt->execute([':id' => $m[1]]);

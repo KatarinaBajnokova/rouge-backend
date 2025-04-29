@@ -6,7 +6,7 @@ $method = $_SERVER['REQUEST_METHOD'];
 $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $path = trim(str_replace('/api/', '', $requestUri), '/');
 
-// ─── GET /api/basket ───
+// GET /api/basket
 if ($method === 'GET' && $path === 'basket') {
     $stmt = $db->query(
         'SELECT b.id AS basketId, b.quantity, i.id AS itemId, i.name, i.image_url, i.category, i.level, i.price
@@ -30,7 +30,7 @@ if ($method === 'GET' && $path === 'basket') {
     send(['items' => $items, 'total_price' => round($total, 2)]);
 }
 
-// ─── POST /api/basket ───
+// POST /api/basket
 if ($method === 'POST' && $path === 'basket') {
     $data = json_decode(file_get_contents('php://input'), true) ?: [];
     if (empty($data['item_id'])) {
@@ -54,7 +54,7 @@ if ($method === 'POST' && $path === 'basket') {
     send(['success' => true]);
 }
 
-// ─── PUT /api/basket/:id ───
+// PUT /api/basket/:id
 if ($method === 'PUT' && preg_match('#^basket/(\d+)$#', $path, $m)) {
     $bid = (int)$m[1];
     $data = json_decode(file_get_contents('php://input'), true) ?: [];
@@ -67,7 +67,7 @@ if ($method === 'PUT' && preg_match('#^basket/(\d+)$#', $path, $m)) {
     send(['success' => (bool)$stmt->rowCount()]);
 }
 
-// ─── DELETE /api/basket/:id ───
+// DELETE /api/basket/:id
 if ($method === 'DELETE' && preg_match('#^basket/(\d+)$#', $path, $m)) {
     $bid = (int)$m[1];
     $stmt = $db->prepare('DELETE FROM basket WHERE id = :bid');

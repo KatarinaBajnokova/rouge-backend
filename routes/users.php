@@ -7,7 +7,7 @@ $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $path = trim(str_replace('/api/', '', $requestUri), '/');
 $subpath = trim(str_replace('users/', '', $path), '/');
 
-// ─── HANDLERS ─────────────────────────────────────
+// HANDLERS
 
 function createUser($db) {
     $data = json_decode(file_get_contents('php://input'), true) ?: [];
@@ -96,11 +96,11 @@ function fetchUserById($db, $userId) {
         send(['error' => 'User not found'], 404);
     }
 
-    unset($user['password']); // Never send password to frontend
+    unset($user['password']); //never send password to frontend
     send($user);
 }
 
-// ─── ROUTING ──────────────────────────────────────
+// ROUTING
 
 if ($method === 'POST' && $path === 'users') {
     createUser($db);

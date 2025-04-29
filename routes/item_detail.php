@@ -10,14 +10,14 @@ $db = getDatabaseConnection();
 
 header('Content-Type: application/json');
 
-// ─── Validate ID ───────────────────────────────────────────
+// validate ID
 if (!isset($_GET['id'])) {
   send(['error' => 'Missing item ID'], 400);
 }
 
 $id = (int) $_GET['id'];
 
-// ─── Fetch Main Item ──────────────────────────────────────
+// fetch main item
 $stmt = $db->prepare("SELECT * FROM items WHERE id = ?");
 $stmt->execute([$id]);
 $item = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -26,17 +26,17 @@ if (!$item) {
   send(['error' => 'Item not found'], 404);
 }
 
-// ─── Fetch Item Images ────────────────────────────────────
+// fetch item images
 $imgStmt = $db->prepare("SELECT id, url FROM item_images WHERE item_id = ?");
 $imgStmt->execute([$id]);
 $item['images'] = $imgStmt->fetchAll(PDO::FETCH_ASSOC);
 
-// ─── Fetch Box Products (with ID!) ────────────────────────
+// fetch box products (with ID)
 $boxStmt = $db->prepare("SELECT id, title, image_url, description FROM box_products WHERE item_id = ?");
 $boxStmt->execute([$id]);
 $item['boxProducts'] = $boxStmt->fetchAll(PDO::FETCH_ASSOC);
 
-// ─── Fetch Instructions ───────────────────────────────────
+// fetch instructions
 $instructionStmt = $db->prepare("
   SELECT step_number, title, text 
   FROM instructions 
@@ -46,12 +46,12 @@ $instructionStmt = $db->prepare("
 $instructionStmt->execute([$id]);
 $item['instructions'] = $instructionStmt->fetchAll(PDO::FETCH_ASSOC);
 
-// ─── Fetch Reviews ────────────────────────────────────────
+// retch reviews
 $reviewStmt = $db->prepare("SELECT id, author, rating, comment FROM reviews WHERE item_id = ?");
 $reviewStmt->execute([$id]);
 $item['reviews'] = $reviewStmt->fetchAll(PDO::FETCH_ASSOC);
 
-// ─── Fetch Tags ───────────────────────────────────────────
+// fetch tags
 $tagStmt = $db->prepare("
   SELECT t.name
   FROM tags t
@@ -61,11 +61,11 @@ $tagStmt = $db->prepare("
 $tagStmt->execute([$id]);
 $item['tags'] = $tagStmt->fetchAll(PDO::FETCH_COLUMN);
 
-// ─── Optional camelCase for frontend ──────────────────────
+// camelcase for frontend (optional)
 if (isset($item['tutorial_url'])) {
   $item['tutorialUrl'] = $item['tutorial_url'];
   unset($item['tutorial_url']);
 }
 
-// ─── Final Response ───────────────────────────────────────
+// final response     
 send($item);

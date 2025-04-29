@@ -1,10 +1,10 @@
 <?php
-// 1) Full error reporting
+// full error reporting
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
 
-// 2) CORS Headers
+// CORS headers
 header('Access-Control-Allow-Origin: *');
 header('Content-Type: application/json');
 
@@ -14,21 +14,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-// 3) Database connection
+// database connection
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/utils/send.php';
 $db = getDatabaseConnection();
 
-// 4) Routing
+// routing
 $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-$path = trim(str_replace('/api/', '', $requestUri), '/'); // ✅ FIXED HERE
+$path = trim(str_replace('/api/', '', $requestUri), '/');
 
-// ─── Root route ───
+// root route
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($path === '' || $path === 'index.php')) {
     send(['message' => 'Welcome to Rouge‑Backend API']);
 }
 
-// ─── Include routes ───
+// include routes
 if (preg_match('#^items($|/)#', $path)) {
     require_once __DIR__ . '/routes/items.php';
     exit;
@@ -84,6 +84,6 @@ if (preg_match('#^item_detail(\.php)?$#', $path)) {
     exit;
 }
 
-// ─── Fallback ───
+// fallback
 send(['error' => 'Endpoint not found'], 404);
 ?>

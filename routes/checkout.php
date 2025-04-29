@@ -6,7 +6,7 @@ $method = $_SERVER['REQUEST_METHOD'];
 $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $path = trim(str_replace('/api/', '', $requestUri), '/');
 
-// ─── POST /api/checkout ───
+// POST /api/checkout
 if ($method === 'POST' && $path === 'checkout') {
     $data = json_decode(file_get_contents('php://input'), true) ?: [];
 
