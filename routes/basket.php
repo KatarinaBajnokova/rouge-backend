@@ -67,6 +67,14 @@ if ($method === 'PUT' && preg_match('#^basket/(\d+)$#', $path, $m)) {
     send(['success' => (bool)$stmt->rowCount()]);
 }
 
+// DELETE /api/basket
+if ($method === 'DELETE' && $path === 'basket') {
+    $stmt = $db->prepare('DELETE FROM basket');
+    $stmt->execute();
+    send(['success' => true]);
+}
+
+
 // DELETE /api/basket/:id
 if ($method === 'DELETE' && preg_match('#^basket/(\d+)$#', $path, $m)) {
     $bid = (int)$m[1];
