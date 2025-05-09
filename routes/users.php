@@ -2,6 +2,10 @@
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../utils/send.php';
 
+function generateSalt($length = 32) {
+    return bin2hex(random_bytes($length));
+}
+
 $method = $_SERVER['REQUEST_METHOD'];
 $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $path = trim(str_replace('/api/', '', $requestUri), '/');
@@ -18,11 +22,13 @@ function createUser($db) {
         }
     }
 
-    $passwordHash = password_hash($data['password'], PASSWORD_DEFAULT);
+    $salt = generateSalt(); // STEP 1: Generate salt
+    $passwordHash = hash('sha256', $salt . $data['password']); // STEP 2: Salted hash
 
+    // STEP 3: Insert into database with salt
     $stmt = $db->prepare('
-        INSERT INTO users (first_name, last_name, email, password)
-        VALUES (:first_name, :last_name, :email, :password)
+        INSERT INTO users (first_name, last_name, email, password, salt)
+        VALUES (:first_name, :last_name, :email, :password, :salt)
     ');
 
     $stmt->execute([
@@ -30,6 +36,7 @@ function createUser($db) {
         ':last_name'  => $data['last_name'],
         ':email'      => $data['email'],
         ':password'   => $passwordHash,
+        ':salt'       => $salt,
     ]);
 
     send([
@@ -37,6 +44,7 @@ function createUser($db) {
         'user_id' => (int)$db->lastInsertId(),
     ], 201);
 }
+
 
 function updateUser($db) {
     $data = json_decode(file_get_contents('php://input'), true) ?: [];
