@@ -2,6 +2,10 @@
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../utils/send.php';
 
+function generateSalt($length = 32) {
+    return bin2hex(random_bytes($length));
+}
+
 $method = $_SERVER['REQUEST_METHOD'];
 $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $path = trim(str_replace('/api/', '', $requestUri), '/');
@@ -18,25 +22,32 @@ function createUser($db) {
         }
     }
 
-    $passwordHash = password_hash($data['password'], PASSWORD_DEFAULT);
+    $salt = generateSalt(); // STEP 1: Generate salt
+    $passwordHash = hash('sha256', $salt . $data['password']); // STEP 2: Salted hash
 
+    // STEP 3: Insert into database with salt
     $stmt = $db->prepare('
-        INSERT INTO users (first_name, last_name, email, password)
-        VALUES (:first_name, :last_name, :email, :password)
+        INSERT INTO users (first_name, last_name, email, password, salt, firebase_uid)
+        VALUES (:first_name, :last_name, :email, :password, :salt, :firebase_uid)
     ');
+
 
     $stmt->execute([
         ':first_name' => $data['first_name'],
         ':last_name'  => $data['last_name'],
         ':email'      => $data['email'],
         ':password'   => $passwordHash,
+        ':salt'       => $salt,
+        ':firebase_uid' => $data['firebase_uid'] ?? null,
     ]);
+
 
     send([
         'message' => 'User created successfully',
         'user_id' => (int)$db->lastInsertId(),
     ], 201);
 }
+
 
 function updateUser($db) {
     $data = json_decode(file_get_contents('php://input'), true) ?: [];
@@ -100,6 +111,25 @@ function fetchUserById($db, $userId) {
     send($user);
 }
 
+function fetchUserByFirebaseUid($db) {
+    $uid = $_GET['uid'] ?? '';
+    if (!$uid) {
+        send(['error' => 'Missing Firebase UID'], 400);
+    }
+
+    $stmt = $db->prepare('SELECT * FROM users WHERE firebase_uid = :uid');
+    $stmt->execute([':uid' => $uid]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$user) {
+        send(['error' => 'User not found'], 404);
+    }
+
+    unset($user['password']);
+    unset($user['salt']);
+    send($user);
+}
+
 // ROUTING
 
 if ($method === 'POST' && $path === 'users') {
@@ -110,7 +140,9 @@ if ($method === 'POST' && $path === 'users') {
     fetchUserByEmail($db);
 } elseif ($method === 'GET' && preg_match('#^(\d+)$#', $subpath, $matches)) {
     fetchUserById($db, (int)$matches[1]);
-} else {
+} elseif ($method === 'GET' && $subpath === 'by-firebase-uid') {
+    fetchUserByFirebaseUid($db);
+}  else {
     send(['error' => 'Invalid API route or method.'], 405);
 }
 ?>
