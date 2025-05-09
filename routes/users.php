@@ -27,9 +27,10 @@ function createUser($db) {
 
     // STEP 3: Insert into database with salt
     $stmt = $db->prepare('
-        INSERT INTO users (first_name, last_name, email, password, salt)
-        VALUES (:first_name, :last_name, :email, :password, :salt)
+        INSERT INTO users (first_name, last_name, email, password, salt, firebase_uid)
+        VALUES (:first_name, :last_name, :email, :password, :salt, :firebase_uid)
     ');
+
 
     $stmt->execute([
         ':first_name' => $data['first_name'],
@@ -37,7 +38,9 @@ function createUser($db) {
         ':email'      => $data['email'],
         ':password'   => $passwordHash,
         ':salt'       => $salt,
+        ':firebase_uid' => $data['firebase_uid'] ?? null,
     ]);
+
 
     send([
         'message' => 'User created successfully',
@@ -108,6 +111,25 @@ function fetchUserById($db, $userId) {
     send($user);
 }
 
+function fetchUserByFirebaseUid($db) {
+    $uid = $_GET['uid'] ?? '';
+    if (!$uid) {
+        send(['error' => 'Missing Firebase UID'], 400);
+    }
+
+    $stmt = $db->prepare('SELECT * FROM users WHERE firebase_uid = :uid');
+    $stmt->execute([':uid' => $uid]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$user) {
+        send(['error' => 'User not found'], 404);
+    }
+
+    unset($user['password']);
+    unset($user['salt']);
+    send($user);
+}
+
 // ROUTING
 
 if ($method === 'POST' && $path === 'users') {
@@ -118,7 +140,9 @@ if ($method === 'POST' && $path === 'users') {
     fetchUserByEmail($db);
 } elseif ($method === 'GET' && preg_match('#^(\d+)$#', $subpath, $matches)) {
     fetchUserById($db, (int)$matches[1]);
-} else {
+} elseif ($method === 'GET' && $subpath === 'by-firebase-uid') {
+    fetchUserByFirebaseUid($db);
+}  else {
     send(['error' => 'Invalid API route or method.'], 405);
 }
 ?>
