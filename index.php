@@ -84,6 +84,31 @@ if (preg_match('#^item_detail(\.php)?$#', $path)) {
     exit;
 }
 
+if (preg_match('#^category-groups($|/)#', $path)) {
+    require_once __DIR__ . '/routes/category-groups.php';
+    exit;
+}
+
+if (preg_match('#^categories($|/)#', $path)) {
+    require_once __DIR__ . '/routes/categories.php';
+    exit;
+}
+
+if (preg_match('#^subcategories($|/)#', $path)) {
+    require_once __DIR__ . '/routes/subcategories.php';
+    exit;
+  }
+
+if (preg_match('#^item-filters($|/)#', $path)) {
+    require_once __DIR__ . '/routes/item-filters.php';
+    exit;
+}
+
+if (preg_match('#^search(\.php)?$#', $path)) {
+    require_once __DIR__ . '/routes/search.php';
+    exit;
+}
+
 // fallback
 send(['error' => 'Endpoint not found'], 404);
 ?>
