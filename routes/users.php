@@ -1,10 +1,11 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../utils/send.php';
 
-function generateSalt($length = 32) {
-    return bin2hex(random_bytes($length));
-}
+$db = getDatabaseConnection();
 
 $method = $_SERVER['REQUEST_METHOD'];
 $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
@@ -13,7 +14,7 @@ $subpath = trim(str_replace('users/', '', $path), '/');
 
 error_log("🔀 Routing: method=$method path=$path subpath=$subpath");
 
-// ✅ Handle Firebase UID fetch directly first
+// ✅ Handle Firebase UID fetch first
 if ($method === 'GET' && $path === 'users/by-firebase-uid') {
     fetchUserByFirebaseUid($db);
     exit;
@@ -23,7 +24,6 @@ if ($method === 'POST' && $path === 'users/by-firebase-uid') {
     updateUserByFirebaseUid($db);
     exit;
 }
-
 
 // HANDLERS
 
@@ -36,14 +36,14 @@ function createUser($db) {
         }
     }
 
-    $salt = generateSalt();
-    $passwordHash = hash('sha256', $salt . $data['password']);
+    // 🔥 Just hash the password directly without salt
+    $passwordHash = hash('sha256', $data['password']);
 
     error_log("Creating user with UID: " . ($data['firebase_uid'] ?? 'null'));
 
     $stmt = $db->prepare('
-        INSERT INTO users (first_name, last_name, email, password, salt, firebase_uid)
-        VALUES (:first_name, :last_name, :email, :password, :salt, :firebase_uid)
+        INSERT INTO users (first_name, last_name, email, password, firebase_uid)
+        VALUES (:first_name, :last_name, :email, :password, :firebase_uid)
     ');
 
     $stmt->execute([
@@ -51,7 +51,6 @@ function createUser($db) {
         ':last_name'  => $data['last_name'],
         ':email'      => $data['email'],
         ':password'   => $passwordHash,
-        ':salt'       => $salt,
         ':firebase_uid' => $data['firebase_uid'] ?? null,
     ]);
 
@@ -78,7 +77,7 @@ function updateUser($db) {
 
     if (empty($updates)) send(['error' => 'No valid fields to update'], 400);
 
-    $sql = 'UPDATE users SET ' . implode(', ', $updates) . ' WHERE id = :user_id'; // ✅ ID not firebase_uid
+    $sql = 'UPDATE users SET ' . implode(', ', $updates) . ' WHERE id = :user_id';
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
 
@@ -126,11 +125,9 @@ function fetchUserByFirebaseUid($db) {
 
     error_log("✅ User found for UID: $uid");
 
-    unset($user['password'], $user['salt']);
-    send($user);   // ✅ send full clean user object
+    unset($user['password']);
+    send($user);
 }
-
-
 
 function updateUserByFirebaseUid($db) {
     $data = json_decode(file_get_contents('php://input'), true) ?: [];
@@ -161,17 +158,20 @@ function updateUserByFirebaseUid($db) {
     send(['message' => 'User profile updated via firebase_uid']);
 }
 
-
-// ROUTING (fallback)
-
+// ROUTING (main fallback)
 if ($method === 'POST' && $path === 'users') {
+    error_log("🛠 Handling POST /api/users");
     createUser($db);
+    exit;
 } elseif ($method === 'POST' && $subpath === 'update') {
     updateUser($db);
+    exit;
 } elseif ($method === 'GET' && $subpath === 'by-email') {
     fetchUserByEmail($db);
+    exit;
 } elseif ($method === 'GET' && preg_match('#^(\d+)$#', $subpath, $matches)) {
     fetchUserById($db, (int)$matches[1]);
+    exit;
 } else {
     send(['error' => 'Invalid API route or method.'], 405);
 }
