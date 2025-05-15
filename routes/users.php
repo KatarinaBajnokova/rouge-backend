@@ -158,6 +158,24 @@ function updateUserByFirebaseUid($db) {
     send(['message' => 'User profile updated via firebase_uid']);
 }
 
+// POST /api/addresses/add
+if ($method === 'POST' && $path === 'addresses/add') {
+    $input = json_decode(file_get_contents('php://input'), true);
+    $userId = $input['user_id'];
+    $address1 = $input['address_1'];
+    $address2 = $input['address_2'] ?? '';
+    $postalCode = $input['postal_code'];
+    $country = $input['country'];
+    $phone = $input['phone'];
+
+    $stmt = $db->prepare("INSERT INTO addresses (user_id, address_1, address_2, postal_code, country, phone) VALUES (?, ?, ?, ?, ?, ?)");
+    $stmt->execute([$userId, $address1, $address2, $postalCode, $country, $phone]);
+
+    echo json_encode(['message' => 'Address added successfully']);
+    exit;
+}
+
+
 // ROUTING (main fallback)
 if ($method === 'POST' && $path === 'users') {
     error_log("🛠 Handling POST /api/users");
