@@ -14,18 +14,7 @@ $subpath = trim(str_replace('users/', '', $path), '/');
 
 error_log("🔀 Routing: method=$method path=$path subpath=$subpath");
 
-// ✅ Handle Firebase UID fetch first
-if ($method === 'GET' && $path === 'users/by-firebase-uid') {
-    fetchUserByFirebaseUid($db);
-    exit;
-}
-
-if ($method === 'POST' && $path === 'users/by-firebase-uid') {
-    updateUserByFirebaseUid($db);
-    exit;
-}
-
-// HANDLERS
+// ========== USERS HANDLERS ==========
 
 function createUser($db) {
     $data = json_decode(file_get_contents('php://input'), true) ?: [];
@@ -36,7 +25,6 @@ function createUser($db) {
         }
     }
 
-    // 🔥 Just hash the password directly without salt
     $passwordHash = hash('sha256', $data['password']);
 
     error_log("Creating user with UID: " . ($data['firebase_uid'] ?? 'null'));
@@ -110,7 +98,6 @@ function fetchUserByFirebaseUid($db) {
     error_log("🔍 Looking for Firebase UID: $uid");
 
     if (!$uid) {
-        error_log("⛔ No UID provided");
         send(['error' => 'Missing Firebase UID'], 400);
     }
 
@@ -119,11 +106,8 @@ function fetchUserByFirebaseUid($db) {
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$user) {
-        error_log("❌ No user found for UID: $uid");
         send(['error' => 'User not found'], 404);
     }
-
-    error_log("✅ User found for UID: $uid");
 
     unset($user['password']);
     send($user);
@@ -158,38 +142,98 @@ function updateUserByFirebaseUid($db) {
     send(['message' => 'User profile updated via firebase_uid']);
 }
 
-// POST /api/addresses/add
-if ($method === 'POST' && $path === 'addresses/add') {
+// ========== ADDRESSES HANDLERS ==========
+
+function addAddress($db) {
     $input = json_decode(file_get_contents('php://input'), true);
-    $userId = $input['user_id'];
-    $address1 = $input['address_1'];
+
+    $userId = $input['user_id'] ?? null;
+    $address1 = $input['address_1'] ?? null;
     $address2 = $input['address_2'] ?? '';
-    $postalCode = $input['postal_code'];
-    $country = $input['country'];
-    $phone = $input['phone'];
+    $postalCode = $input['postal_code'] ?? null;
+    $country = $input['country'] ?? null;
+    $phone = $input['phone'] ?? null;
+
+    if (!$userId || !$address1 || !$postalCode || !$country || !$phone) {
+        send(['error' => 'Missing required fields'], 400);
+    }
 
     $stmt = $db->prepare("INSERT INTO addresses (user_id, address_1, address_2, postal_code, country, phone) VALUES (?, ?, ?, ?, ?, ?)");
     $stmt->execute([$userId, $address1, $address2, $postalCode, $country, $phone]);
 
-    echo json_encode(['message' => 'Address added successfully']);
+    send(['message' => 'Address added successfully'], 201);
+}
+
+function listAddresses($db) {
+    $userId = $_GET['user_id'] ?? null;
+    if (!$userId) {
+        send(['error' => 'user_id is required'], 400);
+    }
+
+    $stmt = $db->prepare('SELECT * FROM addresses WHERE user_id = ?');
+    $stmt->execute([$userId]);
+    $addresses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    send($addresses);
+}
+
+// ========== ROUTING ==========
+
+// USERS ROUTES
+if ($method === 'GET' && $path === 'users/by-firebase-uid') {
+    fetchUserByFirebaseUid($db);
     exit;
 }
 
+if ($method === 'POST' && $path === 'users/by-firebase-uid') {
+    updateUserByFirebaseUid($db);
+    exit;
+}
 
-// ROUTING (main fallback)
 if ($method === 'POST' && $path === 'users') {
-    error_log("🛠 Handling POST /api/users");
     createUser($db);
     exit;
-} elseif ($method === 'POST' && $subpath === 'update') {
+}
+
+if ($method === 'POST' && $subpath === 'update') {
     updateUser($db);
     exit;
-} elseif ($method === 'GET' && $subpath === 'by-email') {
+}
+
+if ($method === 'GET' && $subpath === 'by-email') {
     fetchUserByEmail($db);
     exit;
-} elseif ($method === 'GET' && preg_match('#^(\d+)$#', $subpath, $matches)) {
+}
+
+if ($method === 'GET' && preg_match('#^(\d+)$#', $subpath, $matches)) {
     fetchUserById($db, (int)$matches[1]);
     exit;
-} else {
-    send(['error' => 'Invalid API route or method.'], 405);
 }
+
+// ADDRESSES ROUTES
+if ($method === 'POST' && ($path === 'addresses/add' || $path === 'users/addresses/add')) {
+    addAddress($db);
+    exit;
+}
+
+
+if ($method === 'GET' && $path === 'addresses/list') {
+    listAddresses($db);
+    exit;
+}
+
+// ✅ Handle fetching addresses for a user (GET /api/users/{id}/addresses)
+if ($method === 'GET' && preg_match('#^users/(\d+)/addresses$#', $path, $matches)) {
+    $userId = (int)$matches[1];
+
+    $stmt = $db->prepare('SELECT * FROM addresses WHERE user_id = ?');
+    $stmt->execute([$userId]);
+    $addresses = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    send($addresses);
+    exit;
+}
+
+
+// 🚨 If none matched
+send(['error' => 'Invalid API route or method.'], 405);
