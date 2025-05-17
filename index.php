@@ -25,7 +25,8 @@ $path = trim(str_replace('/api/', '', $requestUri), '/');
 
 // root route
 if ($_SERVER['REQUEST_METHOD'] === 'GET' && ($path === '' || $path === 'index.php')) {
-    send(['message' => 'Welcome to Rouge‑Backend API']);
+    send(['message' => 'Welcome to Rouge-Backend API']);
+    exit;
 }
 
 // include routes
@@ -97,7 +98,13 @@ if (preg_match('#^categories($|/)#', $path)) {
 if (preg_match('#^subcategories($|/)#', $path)) {
     require_once __DIR__ . '/routes/subcategories.php';
     exit;
-  }
+}
+
+// ← New filter-options route
+if (preg_match('#^filter-options($|/)#', $path)) {
+    require_once __DIR__ . '/routes/filter-options.php';
+    exit;
+}
 
 if (preg_match('#^item-filters($|/)#', $path)) {
     require_once __DIR__ . '/routes/item-filters.php';
@@ -111,4 +118,3 @@ if (preg_match('#^search(\.php)?$#', $path)) {
 
 // fallback
 send(['error' => 'Endpoint not found'], 404);
-?>
