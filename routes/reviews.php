@@ -19,19 +19,28 @@ if ($method === 'GET' && preg_match('#^reviews/(\d+)$#', $path, $m)) {
 if ($method === 'POST' && $path === 'reviews') {
     $data = json_decode(file_get_contents('php://input'), true) ?: [];
 
-    if (empty($data['item_id']) || empty($data['author']) || empty($data['rating']) || empty($data['comment'])) {
+    if (
+        empty($data['item_id']) ||
+        empty($data['author']) ||
+        empty($data['rating']) ||
+        empty($data['comment'])
+    ) {
         send(['error' => 'Missing required review fields'], 400);
     }
 
+    $userId = $data['user_id'] ?? null;
+    error_log("📝 Inserting review for user_id: $userId"); // Debug log
+
     $stmt = $db->prepare('
-        INSERT INTO reviews (item_id, author, rating, comment)
-        VALUES (:item_id, :author, :rating, :comment)
+        INSERT INTO reviews (item_id, author, rating, comment, user_id)
+        VALUES (:item_id, :author, :rating, :comment, :user_id)
     ');
     $stmt->execute([
         ':item_id' => $data['item_id'],
-        ':author' => $data['author'],
-        ':rating' => $data['rating'],
+        ':author'  => $data['author'],
+        ':rating'  => $data['rating'],
         ':comment' => $data['comment'],
+        ':user_id' => $userId,
     ]);
 
     send(['success' => true, 'review_id' => (int)$db->lastInsertId()], 201);
