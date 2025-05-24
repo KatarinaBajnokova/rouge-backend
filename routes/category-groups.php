@@ -1,12 +1,12 @@
 <?php
 // routes/category-groups.php
-
+require_once __DIR__ . '/../utils/cors.php';
+require_once __DIR__ . '/../utils/send.php';
 // Always return JSON
 header('Content-Type: application/json');
 
 // Load your DB connector and response helper
 require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../utils/send.php';
 
 // Get a PDO instance
 $db = getDatabaseConnection();

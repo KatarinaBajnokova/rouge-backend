@@ -1,41 +1,64 @@
 <?php
-require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../utils/cors.php';
 require_once __DIR__ . '/../utils/send.php';
+require_once __DIR__ . '/../config/database.php';
 
-$method = $_SERVER['REQUEST_METHOD'];
-$requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-$path = trim(str_replace('/api/', '', $requestUri), '/');
+session_start();
 
-// POST /api/checkout
-if ($method === 'POST' && $path === 'checkout') {
-    $data = json_decode(file_get_contents('php://input'), true) ?: [];
+//echo "✅ orders.php loaded<br>";
 
-    $stmt = $db->prepare('
-        INSERT INTO orders (
-          full_name, email, phone, address_1, address_2,
-          company_name, vat_number, payment_method, is_gift,
-          friend_name, friend_email
-        )
-        VALUES (
-          :full_name, :email, :phone, :address_1, :address_2,
-          :company_name, :vat_number, :payment_method, :is_gift,
-          :friend_name, :friend_email
-        )
-    ');
+if (!function_exists('getDatabaseConnection')) {
+    //echo "❌ getDatabaseConnection is not defined<br>";
+    exit;
+}
 
-    $stmt->execute([
-        ':full_name'      => $data['full_name'] ?? null,
-        ':email'          => $data['email'] ?? null,
-        ':phone'          => $data['phone'] ?? null,
-        ':address_1'      => $data['address_1'] ?? null,
-        ':address_2'      => $data['address_2'] ?? null,
-        ':company_name'   => $data['company_name'] ?? null,
-        ':vat_number'     => $data['vat_number'] ?? null,
-        ':payment_method' => $data['payment_method'] ?? null,
-        ':is_gift'        => !empty($data['is_gift']) ? 1 : 0,
-        ':friend_name'    => $data['friend_name'] ?? null,
-        ':friend_email'   => $data['friend_email'] ?? null,
+try {
+    $db = getDatabaseConnection();
+    //echo "✅ DB connected<br>";
+} catch (Throwable $e) {
+    //echo "❌ DB connection failed: " . $e->getMessage();
+    exit;
+}
+
+// Optional: remove this line once you're ready to proceed
+// exit;
+
+try {
+    $method     = $_SERVER['REQUEST_METHOD'];
+    $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+    $path       = trim(str_replace('/api/', '', $requestUri), '/');
+
+    if ($method === 'GET' && $path === 'orders/reorder') {
+        $userId = $_SESSION['backendUserId'] ?? null;
+        if (!$userId) {
+            send(['error' => 'Not authenticated'], 401);
+        }
+
+        $stmt = $db->prepare("
+          SELECT i.id, i.name, i.category, i.level, i.price, i.image_url
+          FROM order_items oi
+          JOIN orders o ON oi.order_id = o.id
+          JOIN items i ON oi.item_id = i.id
+          WHERE o.user_id = ?
+          GROUP BY i.id
+          ORDER BY MAX(o.created_at) DESC
+        ");
+        $stmt->execute([$userId]);
+        $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+        send($items);
+    }
+
+    send(['error' => 'Endpoint not found'], 404);
+
+} catch (Throwable $e) {
+    http_response_code(500);
+    header('Content-Type: application/json');
+    echo json_encode([
+        'error' => $e->getMessage(),
+        'file' => $e->getFile(),
+        'line' => $e->getLine(),
+        'trace' => explode("\n", $e->getTraceAsString())
     ]);
-
-    send(['success' => true, 'order_id' => (int)$db->lastInsertId()], 201);
+    exit;
 }

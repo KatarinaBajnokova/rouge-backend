@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../utils/cors.php';
 header('Content-Type: application/json; charset=utf-8');
 
 // 1) Grab & trim the query param

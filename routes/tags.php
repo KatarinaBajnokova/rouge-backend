@@ -1,6 +1,7 @@
 <?php
-require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../utils/cors.php';
 require_once __DIR__ . '/../utils/send.php';
+require_once __DIR__ . '/../config/database.php';
 
 $method = $_SERVER['REQUEST_METHOD'];
 $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
