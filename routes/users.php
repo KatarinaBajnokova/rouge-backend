@@ -1,4 +1,5 @@
 <?php
+session_start();
 require_once __DIR__ . '/../utils/cors.php';
 require_once __DIR__ . '/../utils/send.php';
 
@@ -111,6 +112,10 @@ function fetchUserByFirebaseUid($db) {
         send(['error' => 'User not found'], 404);
     }
 
+    // ✅ Set the session user ID here
+    $_SESSION['backendUserId'] = $user['id'];
+    error_log("✅ Session set: backendUserId=" . $_SESSION['backendUserId']);
+
     unset($user['password']);
     send($user);
 }
@@ -143,6 +148,28 @@ function updateUserByFirebaseUid($db) {
 
     send(['message' => 'User profile updated via firebase_uid']);
 }
+
+function logoutUser() {
+    session_start();
+    session_unset();
+    session_destroy();
+
+    // Explicitly remove session cookie from browser
+    if (ini_get("session.use_cookies")) {
+        $params = session_get_cookie_params();
+        setcookie(
+            session_name(), '', time() - 42000,
+            $params["path"], $params["domain"],
+            $params["secure"], $params["httponly"]
+        );
+    }
+
+    require_once __DIR__ . '/../utils/cors.php';
+    require_once __DIR__ . '/../utils/send.php';
+
+    send(['message' => 'Logged out']);
+}
+
 
 // ========== ADDRESSES HANDLERS ==========
 
@@ -181,7 +208,6 @@ function listAddresses($db) {
 
 // ========== ROUTING ==========
 
-// USERS ROUTES
 if ($method === 'GET' && $path === 'users/by-firebase-uid') {
     fetchUserByFirebaseUid($db);
     exit;
@@ -202,6 +228,11 @@ if ($method === 'POST' && $subpath === 'update') {
     exit;
 }
 
+if ($method === 'POST' && $path === 'users/logout') {
+    logoutUser();
+    exit;
+}
+
 if ($method === 'GET' && $subpath === 'by-email') {
     fetchUserByEmail($db);
     exit;
@@ -212,19 +243,16 @@ if ($method === 'GET' && preg_match('#^(\d+)$#', $subpath, $matches)) {
     exit;
 }
 
-// ADDRESSES ROUTES
 if ($method === 'POST' && ($path === 'addresses/add' || $path === 'users/addresses/add')) {
     addAddress($db);
     exit;
 }
-
 
 if ($method === 'GET' && $path === 'addresses/list') {
     listAddresses($db);
     exit;
 }
 
-// ✅ Handle fetching addresses for a user (GET /api/users/{id}/addresses)
 if ($method === 'GET' && preg_match('#^users/(\d+)/addresses$#', $path, $matches)) {
     $userId = (int)$matches[1];
 
@@ -234,6 +262,14 @@ if ($method === 'GET' && preg_match('#^users/(\d+)/addresses$#', $path, $matches
 
     send($addresses);
     exit;
+}
+
+if ($method === 'GET' && $path === 'session/debug') {
+    send([
+        'session_id' => session_id(),
+        'backendUserId' => $_SESSION['backendUserId'] ?? null,
+        'session_status' => session_status()
+    ]);
 }
 
 
