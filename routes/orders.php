@@ -3,25 +3,15 @@ require_once __DIR__ . '/../utils/cors.php';
 require_once __DIR__ . '/../utils/send.php';
 require_once __DIR__ . '/../config/database.php';
 
-session_start();
-
-//echo "✅ orders.php loaded<br>";
-
-if (!function_exists('getDatabaseConnection')) {
-    //echo "❌ getDatabaseConnection is not defined<br>";
-    exit;
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
 }
 
 try {
     $db = getDatabaseConnection();
-    //echo "✅ DB connected<br>";
 } catch (Throwable $e) {
-    //echo "❌ DB connection failed: " . $e->getMessage();
     exit;
 }
-
-// Optional: remove this line once you're ready to proceed
-// exit;
 
 try {
     $method     = $_SERVER['REQUEST_METHOD'];
