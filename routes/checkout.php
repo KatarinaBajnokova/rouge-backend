@@ -4,14 +4,11 @@ require_once __DIR__ . '/../utils/send.php';
 require_once __DIR__ . '/../config/database.php';
 session_start();
 
-
 $method     = $_SERVER['REQUEST_METHOD'];
 $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $path       = trim(str_replace('/api/', '', $requestUri), '/');
 
-// POST /api/checkout
 if ($method === 'POST' && $path === 'checkout') {
-    // 1) ensure user is logged in
     $userId = $_SESSION['backendUserId'] ?? null;
     if (!$userId) {
         http_response_code(401);
@@ -21,7 +18,6 @@ if ($method === 'POST' && $path === 'checkout') {
 
     $data = json_decode(file_get_contents('php://input'), true) ?: [];
 
-    // 2) insert into orders (with user_id)
     $stmt = $db->prepare('
       INSERT INTO orders (
         user_id,
@@ -56,7 +52,6 @@ if ($method === 'POST' && $path === 'checkout') {
 
     $orderId = (int)$db->lastInsertId();
 
-    // 3) insert line-items into order_items
     $stmtItem = $db->prepare('
       INSERT INTO order_items (order_id, item_id, quantity)
       VALUES (?, ?, ?)
@@ -69,10 +64,8 @@ if ($method === 'POST' && $path === 'checkout') {
       }
     }
 
-    // 4) respond
     send(['success'=>true,'order_id'=>$orderId], 201);
     exit;
 }
 
-// fallback
 send(['error'=>'Endpoint not found'], 404);

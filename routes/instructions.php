@@ -7,13 +7,11 @@ $method = $_SERVER['REQUEST_METHOD'];
 $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $path = trim(str_replace('/api/', '', $requestUri), '/');
 
-// GET /api/instructions
 if ($method === 'GET' && $path === 'instructions') {
     $stmt = $db->query('SELECT * FROM instructions');
     send($stmt->fetchAll(PDO::FETCH_ASSOC));
 }
 
-// POST /api/instructions
 if ($method === 'POST' && $path === 'instructions') {
     $data = json_decode(file_get_contents('php://input'), true) ?: [];
     if (empty($data['item_id']) || empty($data['step_number']) || empty($data['text'])) {
@@ -30,7 +28,6 @@ if ($method === 'POST' && $path === 'instructions') {
     send(['success' => true], 201);
 }
 
-// PUT /api/instructions/:id
 if ($method === 'PUT' && preg_match('#^instructions/(\d+)$#', $path, $m)) {
     $id = (int)$m[1];
     $data = json_decode(file_get_contents('php://input'), true) ?: [];
@@ -53,7 +50,6 @@ if ($method === 'PUT' && preg_match('#^instructions/(\d+)$#', $path, $m)) {
     send(['success' => (bool)$stmt->rowCount()]);
 }
 
-// DELETE /api/instructions/:id
 if ($method === 'DELETE' && preg_match('#^instructions/(\d+)$#', $path, $m)) {
     $id = (int)$m[1];
     $stmt = $db->prepare('DELETE FROM instructions WHERE id = :id');
