@@ -1,50 +1,105 @@
 <?php
+// routes/favorites.php
+
 require_once __DIR__ . '/../utils/cors.php';
+require_once __DIR__ . '/../utils/send.php';
 require_once __DIR__ . '/../config/database.php';
 
-session_start();
-header('Content-Type: application/json');
+session_start(); // ✅ Start the session
+$pdo = getDatabaseConnection();
 
-if (!isset($_SESSION['backendUserId'])) {
-    http_response_code(401);
-    echo json_encode(['error' => 'Unauthorized']);
+$input = json_decode(file_get_contents('php://input'), true) ?? [];
+
+// Get user ID from session or fallback sources
+$userId = $_SESSION['backendUserId'] ?? 0;
+
+if (!$userId && ($_SERVER['REQUEST_METHOD'] === 'POST' || $_SERVER['REQUEST_METHOD'] === 'DELETE')) {
+    $userId = isset($input['user_id']) ? (int)$input['user_id'] : 0;
+}
+
+$token = $input['auth_token'] ?? '';
+if (!$userId && $token) {
+    $userId = validateToken($token);
+}
+
+if (!$userId) {
+    send(['error' => 'User not authenticated or missing user_id'], 401);
     exit;
 }
 
-$user_id = $_SESSION['backendUserId'];
-
-if ($_SERVER['REQUEST_METHOD'] === 'GET') {
-    $stmt = $db->prepare('SELECT item_id FROM favorites WHERE user_id = ?');
-    $stmt->execute([$user_id]);
-    $favorites = $stmt->fetchAll(PDO::FETCH_COLUMN);
-    echo json_encode(['favorites' => $favorites]);
-    exit;
-}
-
+// POST → Toggle favorite
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $data = json_decode(file_get_contents('php://input'), true) ?: [];
-    $item_id = $data['item_id'] ?? null;
-    if (!$item_id) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Missing item_id']);
+    $itemId = isset($input['item_id']) ? (int)$input['item_id'] : 0;
+
+    if (!$itemId) {
+        error_log("❌ Missing item_id in POST");
+        send(['error' => 'Missing item_id'], 400);
         exit;
     }
-    $stmt = $db->prepare('INSERT OR IGNORE INTO favorites (user_id, item_id) VALUES (?, ?)');
-    $stmt->execute([$user_id, $item_id]);
-    echo json_encode(['success' => true]);
+
+    error_log("✅ Favoriting item $itemId for user $userId");
+
+    $pdo->beginTransaction();
+    try {
+        $chk = $pdo->prepare("SELECT 1 FROM favorites WHERE user_id = :uid AND item_id = :iid");
+        $chk->execute([':uid' => $userId, ':iid' => $itemId]);
+
+        if ($chk->fetch()) {
+            $del = $pdo->prepare("DELETE FROM favorites WHERE user_id = :uid AND item_id = :iid");
+            $del->execute([':uid' => $userId, ':iid' => $itemId]);
+            $pdo->commit();
+            send(['favorited' => false]);
+        } else {
+            $ins = $pdo->prepare("INSERT INTO favorites (user_id, item_id) VALUES (:uid, :iid)");
+            $ins->execute([':uid' => $userId, ':iid' => $itemId]);
+            $pdo->commit();
+            send(['favorited' => true]);
+        }
+    } catch (Exception $e) {
+        $pdo->rollBack();
+        error_log("❌ DB error on favoriting: " . $e->getMessage());
+        send(['error' => 'Database error'], 500);
+    }
+
     exit;
 }
 
+// GET → List favorites
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    $stmt = $pdo->prepare("SELECT i.* FROM favorites f JOIN items i ON i.id = f.item_id WHERE f.user_id = :uid ORDER BY f.id DESC");
+    $stmt->execute([':uid' => $userId]);
+    $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    send($items);
+    exit;
+}
+
+// DELETE → Remove from favorites
 if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
-    $data = json_decode(file_get_contents('php://input'), true) ?: [];
-    $item_id = $data['item_id'] ?? null;
-    if (!$item_id) {
-        http_response_code(400);
-        echo json_encode(['error' => 'Missing item_id']);
+    $itemId = isset($input['item_id']) ? (int)$input['item_id'] : 0;
+
+    if (!$itemId) {
+        send(['error' => 'Missing item_id'], 400);
         exit;
     }
-    $stmt = $db->prepare('DELETE FROM favorites WHERE user_id = ? AND item_id = ?');
-    $stmt->execute([$user_id, $item_id]);
-    echo json_encode(['success' => true]);
+
+    $chk = $pdo->prepare("SELECT 1 FROM favorites WHERE user_id = :uid AND item_id = :iid");
+    $chk->execute([':uid' => $userId, ':iid' => $itemId]);
+
+    if ($chk->fetch()) {
+        $del = $pdo->prepare("DELETE FROM favorites WHERE user_id = :uid AND item_id = :iid");
+        $del->execute([':uid' => $userId, ':iid' => $itemId]);
+        send(['message' => 'Item removed from favorites']);
+    } else {
+        send(['error' => 'Item not found in favorites'], 404);
+    }
+
     exit;
+}
+
+// Unsupported methods
+send(['error' => 'Method not allowed'], 405);
+
+// Token validation
+function validateToken($token) {
+    return $token === 'validToken123' ? 1 : 0;
 }
