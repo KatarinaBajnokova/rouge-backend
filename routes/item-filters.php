@@ -12,33 +12,27 @@ $path       = trim(str_replace('/api/', '', $requestUri), '/');
 
 if ($method === 'GET' && $path === 'item-filters') {
     try {
-   
         $categoryId    = $_GET['categoryId']    ?? null;
         $subcategoryId = $_GET['subcategoryId'] ?? null;
 
-   
         $occasions = [];
         if (!empty($_GET['occasions'])) {
             $occasions = explode(',', $_GET['occasions']);
         }
 
-      
         $detailed = [];
         if (!empty($_GET['detailed'])) {
             $detailed = explode(',', $_GET['detailed']);
         }
 
-     
         $difficulties = [];
         if (!empty($_GET['difficulties'])) {
             $difficulties = explode(',', $_GET['difficulties']);
         }
 
-   
         $minPrice = isset($_GET['minPrice']) ? floatval($_GET['minPrice']) : 0;
         $maxPrice = isset($_GET['maxPrice']) ? floatval($_GET['maxPrice']) : PHP_INT_MAX;
 
-       
         $params = [
             'categoryId'    => $categoryId,
             'subcategoryId' => $subcategoryId,
@@ -49,7 +43,6 @@ if ($method === 'GET' && $path === 'item-filters') {
             'maxPrice'      => $maxPrice,
         ];
 
-      
         $items = getFilteredItems($db, $params);
 
         send($items);

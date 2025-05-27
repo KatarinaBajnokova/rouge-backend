@@ -9,10 +9,8 @@ $db    = getDatabaseConnection();
 $query = isset($_GET['query']) ? trim($_GET['query']) : '';
 
 if ($query === '') {
- 
     send([], 200);
 }
-
 
 $stmt = $db->prepare(
     'SELECT DISTINCT name

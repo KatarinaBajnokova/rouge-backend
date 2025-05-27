@@ -8,7 +8,7 @@ $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $path       = trim(str_replace('/api/', '', $requestUri), '/');
 
 function loginUser(PDO $db) {
-    session_start(); // ✅ Needed to use $_SESSION
+    session_start(); 
 
     $data = json_decode(file_get_contents('php://input'), true) ?: [];
     $email = $data['email'] ?? '';
@@ -17,7 +17,6 @@ function loginUser(PDO $db) {
         send(['error' => 'Email is required'], 400);
     }
 
-    // 🔐 Trust Firebase already authenticated, just find user by email
     $stmt = $db->prepare('SELECT id FROM users WHERE email = :email');
     $stmt->execute([':email' => $email]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);

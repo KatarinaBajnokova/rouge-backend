@@ -16,7 +16,6 @@ if ($method === 'GET' && $path === 'filter-options') {
         send($opts);
         exit;
     } catch (Exception $e) {
-     
         http_response_code(500);
         header('Content-Type: application/json');
         echo json_encode([

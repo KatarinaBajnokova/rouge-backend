@@ -7,7 +7,6 @@ $method = $_SERVER['REQUEST_METHOD'];
 $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $path = trim(str_replace('/api/', '', $requestUri), '/');
 
-// GET /api/reviews/:itemId
 if ($method === 'GET' && preg_match('#^reviews/(\d+)$#', $path, $m)) {
     $itemId = (int)$m[1];
     $stmt = $db->prepare('SELECT id, author, rating, comment FROM reviews WHERE item_id = :id');
@@ -16,7 +15,6 @@ if ($method === 'GET' && preg_match('#^reviews/(\d+)$#', $path, $m)) {
     send($reviews);
 }
 
-// POST /api/reviews
 if ($method === 'POST' && $path === 'reviews') {
     $data = json_decode(file_get_contents('php://input'), true) ?: [];
 
@@ -30,7 +28,6 @@ if ($method === 'POST' && $path === 'reviews') {
     }
 
     $userId = $data['user_id'] ?? null;
-    error_log("📝 Inserting review for user_id: $userId"); // Debug log
 
     $stmt = $db->prepare('
         INSERT INTO reviews (item_id, author, rating, comment, user_id)

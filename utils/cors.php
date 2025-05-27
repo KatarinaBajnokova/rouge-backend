@@ -1,5 +1,4 @@
 <?php
-// CORS preflight headers
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     header('Access-Control-Allow-Origin: http://localhost:3000');
     header('Access-Control-Allow-Credentials: true');
@@ -9,7 +8,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit(0);
 }
 
-// Always apply CORS headers for actual requests
 header('Access-Control-Allow-Origin: http://localhost:3000');
 header('Access-Control-Allow-Credentials: true');
 header('Vary: Origin');

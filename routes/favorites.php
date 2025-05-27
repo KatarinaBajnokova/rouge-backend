@@ -1,16 +1,14 @@
 <?php
-// routes/favorites.php
 
 require_once __DIR__ . '/../utils/cors.php';
 require_once __DIR__ . '/../utils/send.php';
 require_once __DIR__ . '/../config/database.php';
 
-session_start(); // ✅ Start the session
+session_start();
 $pdo = getDatabaseConnection();
 
 $input = json_decode(file_get_contents('php://input'), true) ?? [];
 
-// Get user ID from session or fallback sources
 $userId = $_SESSION['backendUserId'] ?? 0;
 
 if (!$userId && ($_SERVER['REQUEST_METHOD'] === 'POST' || $_SERVER['REQUEST_METHOD'] === 'DELETE')) {
@@ -27,7 +25,6 @@ if (!$userId) {
     exit;
 }
 
-// POST → Toggle favorite
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $itemId = isset($input['item_id']) ? (int)$input['item_id'] : 0;
 
@@ -64,7 +61,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit;
 }
 
-// GET → List favorites
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $stmt = $pdo->prepare("SELECT i.* FROM favorites f JOIN items i ON i.id = f.item_id WHERE f.user_id = :uid ORDER BY f.id DESC");
     $stmt->execute([':uid' => $userId]);
@@ -73,7 +69,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     exit;
 }
 
-// DELETE → Remove from favorites
 if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
     $itemId = isset($input['item_id']) ? (int)$input['item_id'] : 0;
 
@@ -96,10 +91,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'DELETE') {
     exit;
 }
 
-// Unsupported methods
 send(['error' => 'Method not allowed'], 405);
 
-// Token validation
 function validateToken($token) {
     return $token === 'validToken123' ? 1 : 0;
 }

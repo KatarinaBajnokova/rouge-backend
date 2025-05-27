@@ -1,5 +1,4 @@
 <?php
-// routes/categories.php
 require_once __DIR__ . '/../utils/cors.php';
 require_once __DIR__ . '/../utils/send.php';
 header('Content-Type: application/json');
@@ -14,13 +13,13 @@ if ($groupId <= 0) {
     send(['error' => 'Missing or invalid groupId'], 400);
 }
 
-// Add icon_url to the SELECT
+
 $stmt = $db->prepare(
     'SELECT 
         id, 
         category_group_id, 
         name, 
-        icon_url,         -- <--- include this
+        icon_url,         
         sort_order
      FROM categories
     WHERE category_group_id = ?
