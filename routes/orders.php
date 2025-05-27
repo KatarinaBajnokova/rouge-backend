@@ -18,7 +18,7 @@ try {
     $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
     $path       = trim(str_replace('/api/', '', $requestUri), '/');
 
-    // ✅ Save selected address ID for upcoming order
+    //save address id
     if ($method === 'POST' && $path === 'orders/assign-address') {
         $input = json_decode(file_get_contents('php://input'), true);
 
@@ -29,14 +29,13 @@ try {
             send(['error' => 'Missing user_id or address_id'], 400);
         }
 
-        // Store the address in session
+        //store addresses
         $_SESSION['selected_address_id'] = $addressId;
 
         send(['message' => 'Address assigned to session for next order']);
         exit;
     }
 
-    // ✅ Example: create new order using stored address
     if ($method === 'POST' && $path === 'orders/create') {
         $input = json_decode(file_get_contents('php://input'), true);
 
@@ -47,24 +46,21 @@ try {
 
         $addressId = $_SESSION['selected_address_id'] ?? null;
 
-        // ⛳ You can optionally fall back to user's default address here
         if (!$addressId) {
             send(['error' => 'No address selected for this order'], 400);
         }
 
-        // You may want to receive additional order data here
-        // For now, we're just inserting a simple order entry
         $stmt = $db->prepare("INSERT INTO orders (user_id, address_id, created_at) VALUES (?, ?, CURRENT_TIMESTAMP)");
         $stmt->execute([$userId, $addressId]);
 
-        // Clear the selected address so it doesn’t persist unexpectedly
+
         unset($_SESSION['selected_address_id']);
 
         send(['message' => 'Order created successfully', 'order_id' => $db->lastInsertId()], 201);
         exit;
     }
 
-    // 🔁 Reorder logic remains the same
+
     if ($method === 'GET' && $path === 'orders/reorder') {
         $userId = $_SESSION['backendUserId'] ?? null;
         if (!$userId) {
