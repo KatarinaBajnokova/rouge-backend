@@ -68,6 +68,7 @@ $routes = [
     'subcategories' => 'subcategories.php',
     'filter-options' => 'filter-options.php',
     'item-filters' => 'item-filters.php',
+    'favorites'       => 'favorites.php',
     'search' => 'search.php',
 ];
 
