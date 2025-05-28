@@ -190,7 +190,10 @@ function addAddress($db) {
     $stmt = $db->prepare("INSERT INTO addresses (user_id, address_1, address_2, postal_code, country, phone) VALUES (?, ?, ?, ?, ?, ?)");
     $stmt->execute([$userId, $address1, $address2, $postalCode, $country, $phone]);
 
-    send(['message' => 'Address added successfully'], 201);
+    send([
+  'message' => 'Address added successfully',
+  'address_id' => $db->lastInsertId()
+], 201);
 }
 
 function listAddresses($db) {

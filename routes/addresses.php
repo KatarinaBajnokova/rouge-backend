@@ -6,7 +6,6 @@ ini_set('display_errors', 1);
 
 require_once __DIR__ . '/../config/database.php';
 
-
 $db = getDatabaseConnection();
 
 $method = $_SERVER['REQUEST_METHOD'];
@@ -15,7 +14,6 @@ $path = trim(str_replace('/api/', '', $requestUri), '/');
 
 error_log("🔀 Routing: method=$method path=$path");
 
-// Only one route needed for now: POST /api/addresses/add
 if ($method === 'POST' && $path === 'addresses/add') {
     $input = json_decode(file_get_contents('php://input'), true);
 
@@ -40,7 +38,7 @@ if ($method === 'POST' && $path === 'addresses/add') {
     exit;
 }
 
-// In api/addresses.php
+
 if ($method === 'GET' && $path === 'addresses/list') {
     $userId = $_GET['user_id'] ?? null;
     if (!$userId) {
@@ -55,6 +53,4 @@ if ($method === 'GET' && $path === 'addresses/list') {
     exit;
 }
 
-
-// If none matched
 send(['error' => 'Invalid route or method for addresses API.'], 405);
