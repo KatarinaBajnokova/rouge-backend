@@ -55,9 +55,5 @@ $tagStmt = $db->prepare("
 $tagStmt->execute([$id]);
 $item['tags'] = $tagStmt->fetchAll(PDO::FETCH_COLUMN);
 
-if (isset($item['thumbnail'])) {
-  $item['thumbnailUrl'] = $item['thumbnail'];
-  unset($item['thumbnail']);
-}
 
 send($item);
