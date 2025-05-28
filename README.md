@@ -1,8 +1,8 @@
 Rouge
 
 ⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️  
-⚠️Important: Use PORT 3000 for the Frontend! ⚠️
-⚠️Frontend must run on PORT 3000! ⚠️
+⚠️Important: Use PORT 3000 for the Frontend!                       ⚠️
+⚠️Frontend must run on PORT 3000!                                  ⚠️
 ⚠️This is required for CORS to work with the backend on port 8000! ⚠️
 ⚠️Changing the frontend port may cause CORS errors!!!!!!!!!!!!!!!! ⚠️  
 ⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️⚠️
@@ -134,3 +134,49 @@ npm install --save-dev concurrently
 npm install --save-dev prettier
 npm install --save-dev rollup-plugin-visualizer
 npm install --save-dev vite
+
+----Link to the deployed version---- 
+
+https://rouge-e249d.web.app/
+
+The website is deployed via firebase, however we have encountered the following errors:
+
+vendor-Cu7huOqk.js:9  Uncaught TypeError: Cannot read properties of undefined (reading 'useLayoutEffect')
+    at vendor-Cu7huOqk.js:9:7250
+(anonymous) @ vendor-Cu7huOqk.js:9
+
+Uncaught TypeError: undefined has no properties
+
+    <anonymous> https://rouge-coral.vercel.app/assets/vendor-CsWxUodm.js:9
+
+vendor-CsWxUodm.js:9:7229
+
+    <anonymous> https://rouge-coral.vercel.app/assets/vendor-CsWxUodm.js:9
+
+We have tried to deploy it via Vercel, Netlify, and Firebase.
+
+In all three situations we are getting the same errors. 
+
+We have tried to resolve it, but unfortunately we could not. 
+
+We also integatred it into Google Analytics, but we were unable to test it, since there is no user acitvity on the website because it is not loading correctly. 
+
+We rebuilt it several times, we have deployed it multiple times, adjusted vite config in different ways, however it was not resolving our problem. 
+
+After careful consideration of our situation we have came to the conclusion that the main problem is probably arising from Mantine. 
+
+The errror is likely coming from Mantine, which uses useMergeRef internally, or you're calling it directly with an undefined ref.
+
+We have tried to solve this by overwriting it but it was unsuccesful. 
+
+----⚠️Logs, Commits & History⚠️----
+
+Due to github merging issues and other problems, we have changed repositories. 
+
+Initialy we were working in the following two repositories:
+
+        Frontend: https://github.com/Wawa755/Rouge.git
+        
+        Backend: https://github.com/Wawa755/Rouge_backend.git
+        
+Afterwards, we have change the entire project into this one. 
