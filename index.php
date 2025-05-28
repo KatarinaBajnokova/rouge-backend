@@ -67,6 +67,7 @@ $routes = [
     'item-filters' => 'item-filters.php',
     'search' => 'search.php',
     'favorites' => 'favorites.php',
+    'reorders' => 'reorders.php',
 ];
 
 

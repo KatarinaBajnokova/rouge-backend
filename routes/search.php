@@ -11,6 +11,7 @@ if ($query === '') {
 $group = trim($_GET['group'] ?? '');
 
 $dbFile = realpath(__DIR__ . '/../database.db');
+$db = new PDO("sqlite:$dbFile"); // <<<<< THIS LINE FIXES IT!
 $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
 $sql = "
@@ -21,7 +22,7 @@ $sql = "
     level AS difficulty,
     price,
     image_url AS thumbnail_url,
-    description,
+    description
   FROM items
   WHERE (
       name            LIKE :q
