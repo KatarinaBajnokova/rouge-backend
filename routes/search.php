@@ -27,7 +27,6 @@ $sql = "
     price,
     image_url AS thumbnail_url,
     description,
-    tutorial_url
   FROM items
   WHERE (
       name            LIKE :q

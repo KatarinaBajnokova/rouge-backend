@@ -63,11 +63,6 @@ $tagStmt = $db->prepare("
 $tagStmt->execute([$id]);
 $item['tags'] = $tagStmt->fetchAll(PDO::FETCH_COLUMN);
 
-// camelcase for frontend (optional)
-if (isset($item['tutorial_url'])) {
-  $item['tutorialUrl'] = $item['tutorial_url'];
-  unset($item['tutorial_url']);
-}
 
 // final response     
 send($item);
